@@ -610,6 +610,12 @@ install_loaders() {(
                     printf "%s" "$loader_krel" >$tmpdir/krel.txt
                     echo "Creating EFI loader $loader for $loader_krel"
                     create_loader "$kernel" "$initrd" "$tmpdir"/kcli.txt "$tmpdir"/krel.txt "$tmpdir"/linux.efi
+
+                    if [ "$SIGN" = "YES" ]; then
+                        lc_efi sbsign --key $SIGN_KEY --cert $SIGN_PEM --output "$tmpdir"/linux_signed.efi "$tmpdir"/linux.efi
+                        lc_misc mv "$tmpdir"/linux_signed.efi "$tmpdir"/linux.efi
+                    fi
+
                     lc_misc cp -f "$tmpdir"/linux.efi "$loader"
                     verbose_do -l 1 echo "Removing any existing tokens for $loader_krel"
                     remove_luks_token "${cryptdev[1]}" "$loader_krel"

@@ -1,7 +1,7 @@
 #! /bin/bash
 
 SYSTEMD_STUB=/usr/lib/systemd/boot/efi/linuxx64.efi.stub
-CHECKS=( root arch no_separate_boot mounted_efi root_luks systemd_stub tpm tpm_futurepcr packages binaries cryptsetup_version )
+CHECKS=( root signing arch no_separate_boot mounted_efi root_luks systemd_stub tpm tpm_futurepcr packages binaries cryptsetup_version )
 
 APPDIR=.
 . ./bash_functions
@@ -12,6 +12,21 @@ check_root() {
         return 1
     fi
 }
+
+check_signing() {
+    if [ "$SIGN" = "YES" ]; then
+        if [ -z "$(type -Pt "sbsign")" ]; then
+            echo "Cannot find sbsign in path" >&2
+            return 1
+        fi
+
+        if [ -z "$SIGN_KEY" -o -z "$SIGN_PEM" ]; then
+            echo "Signing key and PEM should be specified" >&2
+            return 1
+        fi
+    fi
+}
+
 
 check_arch() {
     if test "$(uname -m)" != "x86_64"; then

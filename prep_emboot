@@ -108,6 +108,15 @@ APPDIR=$(quote_args "$APPDIR")
 #EFI_STUB=<alternate stub>
 EOF
 
+if [ "$SIGN" = "YES" ]; then
+    cat >>$cfgfile <<EOF
+SIGN=YES
+SIGN_KEY=$SIGN_KEY
+SIGN_PEM=$SIGN_PEM
+EOF
+
+fi
+
 # Modify crypttab
 echo "Modifying crypttab"
 cat /etc/crypttab | awk -v newopts="$cryptopts" '$1 == "'"${cryptdev[0]}"'" && $2 == "'"${cryptdev[1]}"'" { print $1 " " $2 " " $3 " " newopts; next; } { print $0; }' >/etc/crypttab.new
