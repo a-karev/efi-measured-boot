@@ -20,13 +20,23 @@ check_signing() {
             return 1
         fi
 
-        if [ -z "$SIGN_KEY" -o -z "$SIGN_PEM" ]; then
-            echo "Signing key and PEM should be specified" >&2
+        if [ -z "$SIGN_KEY" -o ! -e $SIGN_KEY ]; then
+            echo "Signing key file should be specified" >&2
+            return 1
+        fi
+        set +e
+        rc=$(grep -q "BEGIN PRIVATE KEY" $SIGN_KEY; echo $?)
+        set -e
+        if [ $rc -eq 1 ]; then
+            echo "Signing key file is invalid or encrypted" >&2
+            return 1
+        fi
+        if [ -z "$SIGN_PEM" -o ! -e $SIGN_PEM ]; then
+            echo "PEM file should be specified" >&2
             return 1
         fi
     fi
 }
-
 
 check_arch() {
     if test "$(uname -m)" != "x86_64"; then
