@@ -258,7 +258,7 @@ get_device_info() {(
 list_installed_kernels() {(
     declare -a kvers
     shopt -s nullglob
-    local kvers=( /boot/vmlinuz* )
+    local kvers=( /boot/vmlinuz-* )
 
     set +e
 
