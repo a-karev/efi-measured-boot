@@ -106,6 +106,7 @@ APPDIR=$(quote_args "$APPDIR")
 #VERBOSE=<non-zero for verbose output>
 #UNSEAL_PAUSE=<seconds to sleep after unseal>
 #EFI_STUB=<alternate stub>
+FUTURE_PCR_OPTS=
 EOF
 
 if [ "$SIGN" = "YES" ]; then
