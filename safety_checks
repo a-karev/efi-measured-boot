@@ -1,10 +1,14 @@
 #! /bin/bash
 
 SYSTEMD_STUB=/usr/lib/systemd/boot/efi/linuxx64.efi.stub
-CHECKS=( root signing arch no_separate_boot mounted_efi root_luks systemd_stub tpm tpm_futurepcr packages binaries cryptsetup_version )
+CHECKS=( root signing arch binaries packages cryptsetup_version no_separate_boot mounted_efi root_luks systemd_stub tpm pcr_oracle )
 
 APPDIR=.
 . ./bash_functions
+
+if [ -e /etc/efi-measured-boot/config ]; then
+    . /etc/efi-measured-boot/config
+fi
 
 check_root() {
     if test "$(id -u)" != 0; then
@@ -77,9 +81,14 @@ check_root_luks() {
         echo "Root must be hosted on a LUKS2 partition"
         return 1
     fi
+    if (( $(cryptsetup luksDump "${cryptdev[1]}" --dump-json-metadata | jq -r '.keyslots | to_entries | map(.value | select(.kdf.type == "pbkdf2") | 1) | length') == 0 )); then
+        echo "At least one LUKS passphrase must employ pbkdf2 KDF for GRUB2 recovery purposes"
+        return 1
+    fi
 }
 
 check_systemd_stub() {
+    [ -z "$EFI_STUB" ] || return 0
     if ! test -r "$SYSTEMD_STUB"; then
         echo "systemd EFI stub $SYSTEMD_STUB not available: install systemd-boot-efi" >&2
         return 1
@@ -102,10 +111,52 @@ check_packages() {
         echo "initramfs-tools required (dracut is not supported)" >&2
         return 1
     fi
+    for pkg in json-c tss2-esys; do
+        if ! pkg-config --exists $pkg; then
+            echo "Dev package for $pkg is required to build pcr-oracle" >&2
+            return 1
+        fi
+    done
 }
 
 check_binaries() {
-    for bin in sgdisk efibootmgr cryptsetup sed awk tr grep sort uniq diff basename dirname mount tpm2_create tpm2_createprimary tpm2_flushcontext tpm2_load tpm2_nvdefine tpm2_nvincrement tpm2_nvread tpm2_nvreadpublic tpm2_pcrread tpm2_policynv tpm2_policypcr tpm2_shutdown tpm2_startauthsession tpm2_unseal lsblk objcopy pipx update-initramfs dd jq; do
+    for bin in \
+        awk \
+        basename \
+        cryptsetup \
+        dd \
+        diff \
+        dirname \
+        efibootmgr \
+        gawk \
+        grep \
+        jq \
+        lsblk \
+        mount \
+        objcopy \
+        sed \
+        sgdisk \
+        sort \
+        strings \
+        tpm2_create \
+        tpm2_createprimary \
+        tpm2_flushcontext \
+        tpm2_load \
+        tpm2_nvdefine \
+        tpm2_nvincrement \
+        tpm2_nvread \
+        tpm2_nvreadpublic \
+        tpm2_pcrread \
+        tpm2_policynv \
+        tpm2_policypcr \
+        tpm2_shutdown \
+        tpm2_startauthsession \
+        tpm2_unseal \
+        tr \
+        uniq \
+        update-initramfs \
+
+    do
         if [ -z "$(type -Pt "$bin")" ]; then
             echo "Cannot find $bin in path" >&2
             return 1
@@ -121,9 +172,9 @@ check_cryptsetup_version() {
     fi
 }
 
-check_tpm_futurepcr() {
-    if [ ! -r tpm_futurepcr/setup.py ]; then
-        echo "tpm_futurepcr/setup.py does not exist; did you forget to clone --recurse?" >&2
+check_pcr_oracle() {
+    if [ ! -r pcr-oracle/configure ]; then
+        echo "pcr-oracle/configure does not exist; did you forget to clone --recursive?" >&2
         return 1
     fi
 }
@@ -131,7 +182,7 @@ check_tpm_futurepcr() {
 set -e
 
 for c in "${CHECKS[@]}"; do
-    echo -n "$c..." >&2
+    printf %s... "$c" >&2
     eval "check_$c"
-    echo "SUCCESS" >&2
+    printf 'SUCCESS\n' >&2
 done
